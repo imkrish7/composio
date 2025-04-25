@@ -1,1 +1,2 @@
 from .pdf_embedding import PDFEmbedding
+from .pdf_embedding_query import PDFEmbeddingQuery

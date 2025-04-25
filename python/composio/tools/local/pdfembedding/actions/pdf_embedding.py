@@ -72,8 +72,8 @@ class PDFEmbedding(LocalAction[PDFEmbeddingRequest, PDFEmbeddingResponse]):
     """
 
     def execute(self, request: PDFEmbeddingRequest, metadata: Dict) -> PDFEmbeddingResponse:
-        file_path = request.filepath
-        directory = request.directory
+        file_path = request.filepath or metadata["filepath"]
+        directory = request.directory or metadata["directory"]
         splitter_chunk_size = request.splitter_chunk_size
         splitter_chunk_overlap = request.splitter_chunk_overlap
 
