@@ -1,13 +1,11 @@
-from ast import Mod
+import os
 import hashlib
 from typing import Any, Dict, Literal, Optional
 from langchain_core.vectorstores import VectorStoreRetriever
 from pydantic import BaseModel, Field, model_validator
-import os
+
 
 from composio.tools.base.local import LocalAction
-
-
 
 class PDFEmbeddingRequest(BaseModel):
     directory: Optional[str] = Field(
@@ -26,13 +24,17 @@ class PDFEmbeddingRequest(BaseModel):
         default='pdf_vector',
         description="Please provide a collection name if you have in mind. Default collection would be pdf_vector"
     )
-    embedder: Literal["Ollama", "OpenAI", "Anthropic"]=Field(
+    embedder: Literal["Ollama", "OpenAI"]=Field(
         default="Ollama",
         description="Select a valid embedder default value will be ollama",
     )
+    embedding_key: str = Field(
+        default=None,
+        description="If embedding is different than llm"
+    )
     environment_key: str = Field(
         default="",
-        description="If embeder is not ollama environment key required which stores api_key of models 'OPENAI_API_KEY'"
+        description="If embedder is not ollama environment key required which stores api_key of models 'OPENAI_API_KEY'"
     )
     embedder_model: str = Field(
         ...,
@@ -103,7 +105,7 @@ class PDFEmbedding(LocalAction[PDFEmbeddingRequest, PDFEmbeddingResponse]):
 
             all_docs.extend(splitted_docs)
 
-        embeddings = self._get_embedder(embedder_model=request.embedder_model)
+        embeddings = self._get_embedder(embedder_model=request.embedder_model, embedder=request.embedder, environment_key=request.environment_key)
 
         vector_store = self._get_vector_store(collection_name=request.collection_name, connection_string=request.connection_string, embedder=embeddings);
 
@@ -176,17 +178,37 @@ class PDFEmbedding(LocalAction[PDFEmbeddingRequest, PDFEmbeddingResponse]):
         return vector_store
     
 
-    def _get_embedder(self, embedder_model: str):
-        try:
-            from langchain_ollama import OllamaEmbeddings
-        except ModuleNotFoundError as e:
-            raise ModuleNotFoundError(f"The 'langchain_ollama' package is required for embedding. Please install it using 'langchain-ollama'") from e
+    def _get_embedder(self, embedder_model: str, embedder: str, environment_key: str):
+
+        embeddings = None
+
+        if embedder == 'OpenAI':
+            try:
+                from langchain_openai import OpenAIEmbeddings
+            except ModuleNotFoundError as e:
+                raise ModuleNotFoundError(f"The 'langchain-openai' package is required for embedding. Please install it using 'pip install -qU langchain-openai'")
+            
+            api_key = os.environ.get(environment_key)
+
+            if not embedder_model:
+                raise ValueError(f"Embedder model name is required for openai embeddings to use.")
+
+            embeddings = OpenAIEmbeddings(
+                model=embedder_model,
+                api_key=api_key
+            )
+        else:
+            try:
+                from langchain_ollama import OllamaEmbeddings
+            except ModuleNotFoundError as e:
+                raise ModuleNotFoundError(f"The 'langchain-ollama' package is required for embedding. Please install it using 'langchain-ollama'") from e
+
+            if not embedder_model:
+                raise ValueError(f"Embedder model name is required for ollama embeddings to use.")
+
+            embeddings = OllamaEmbeddings(
+                model=embedder_model
+            )
         
-        if not embedder_model:
-            raise ValueError(f"Embedder model name is required for ollama embeddings to use.")
-        
-        embeddings = OllamaEmbeddings(
-            model=embedder_model
-        )
 
         return embeddings
