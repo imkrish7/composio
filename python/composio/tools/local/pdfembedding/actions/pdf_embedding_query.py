@@ -24,7 +24,6 @@ class PDFEmbeddingQuery(LocalAction[PDFEmbeddingQueryRequest, PDFEmbeddingQueryR
     To Retrieved context of query for agent or llm
     """
 
-
     def execute(request: EmebddingQueryRequest, metadat: dict={}):
         retriever = request["retriever"]
         query = request["query"]

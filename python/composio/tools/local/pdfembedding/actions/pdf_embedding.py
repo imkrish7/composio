@@ -18,46 +18,38 @@ class PDFEmbeddingRequest(BaseModel):
     )
     connection_string: str = Field(
         ...,
-        description="Vector store connection string. Currently we are only supporting postgresql vector",
+        description="Connection string for the vector store: We currently only support PostgreSQL for vector storage.",
     )
     collection_name: str = Field(
         default='pdf_vector',
-        description="Please provide a collection name if you have in mind. Default collection would be pdf_vector"
+        description="Please provide a collection name if you have one in mind. The default collection name is pdf_vector."
     )
     embedder: Literal["Ollama", "OpenAI"]=Field(
         default="Ollama",
-        description="Select a valid embedder default value will be ollama",
+        description="Please provide a valid embedder. The default value is 'ollama'.",
     )
-    embedding_key: str = Field(
+    embedding_model_environment_key: str = Field(
         default=None,
-        description="If embedding is different than llm"
-    )
-    environment_key: str = Field(
-        default="",
-        description="If embedder is not ollama environment key required which stores api_key of models 'OPENAI_API_KEY'"
-    )
-    embedder_model: str = Field(
-        ...,
-        description="Model name of embedder"
+        description="Please provide your model API key if you are not using 'ollama'."
     )
     model: str = Field(
         ...,
-        description="Model name for query"
+        description="Embedding model name"
     )
     splitter_chunk_size: int = Field(
         default=500,
-        description="Splitter chunk size default value will be 500. But you can pass based on your documents",
+        description="Text splitter chunk size default value will be 500. But you can pass based on your use case.",
     )
     splitter_chunk_overlap: int = Field(
         default=50,
-        description="Chunk overlap value for splitter default value will be 50. But you can change based on your requirements"
+        description="By default, the chunk overlap value for the splitter is set to 50, but you can adjust it based on your specific use case."
     )
 
 
     @model_validator(mode='after')
     def check_environment_key(self, model):
-        if model.embedder != "Ollama" and not model.environment_key:
-            raise ValueError(f"environment_key is required for embedders and query model")
+        if model.embedder != "Ollama" and not model.embedding_model_environment_key:
+            raise ValueError(f"embedding_model_environment_key is required for embedder model.")
         return model
 
 
@@ -87,7 +79,7 @@ class PDFEmbedding(LocalAction[PDFEmbeddingRequest, PDFEmbeddingResponse]):
             pdf_files = self._extract_files_path(directory);
         
         if len(pdf_files)==0:
-             raise ValueError(f"Error: Directory does not have any pdf files for embedding")
+             raise ValueError(f"Error: Directory does not have any pdf file to embed")
         
         loaded_docs  = []
         # load pdf files data
@@ -105,7 +97,7 @@ class PDFEmbedding(LocalAction[PDFEmbeddingRequest, PDFEmbeddingResponse]):
 
             all_docs.extend(splitted_docs)
 
-        embeddings = self._get_embedder(embedder_model=request.embedder_model, embedder=request.embedder, environment_key=request.environment_key)
+        embeddings = self._get_embedder(embedder_model=request.model, embedder=request.embedder, environment_key=request.embedding_model_environment_key)
 
         vector_store = self._get_vector_store(collection_name=request.collection_name, connection_string=request.connection_string, embedder=embeddings);
 
